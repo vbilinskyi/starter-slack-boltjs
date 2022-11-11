@@ -1,7 +1,8 @@
-const express = require('express')
-const { App, ExpressReceiver } = require('@slack/bolt');
+const express = require('express');
+const {App, ExpressReceiver} = require('@slack/bolt');
+const https = require('https');
 
-const receiver = new ExpressReceiver({ signingSecret: process.env.SLACK_SIGNING_SECRET });
+const receiver = new ExpressReceiver({signingSecret: process.env.SLACK_SIGNING_SECRET});
 
 receiver.router.use(express.static('public'))
 
@@ -11,53 +12,28 @@ const app = new App({
   signingSecret: process.env.SLACK_SIGNING_SECRET,
 });
 
+app.event("app_home_opened", async ({say}) => {
+  console.log("app_home_opened");
+  const thingSpeakEndpoint = 'https://api.thingspeak.com/channels/1927005/fields/1/last.json';
+  https.get(thingSpeakEndpoint, res => {
+    let data = [];
+    const headerDate = res.headers && res.headers.date ? res.headers.date : 'no response date';
+    console.log('Status Code:', res.statusCode);
+    console.log('Date in Response header:', headerDate);
 
-app.message(':wave:', async ({ message, say }) => {
-  // say() sends a message to the channel where the event was triggered
-  await say({
-    blocks: [
-      {
-        "type": "section",
-        "text": {
-          "type": "mrkdwn",
-          "text": `Hey there <@${message.user}>!`
-        },
-        "accessory": {
-          "type": "button",
-          "text": {
-            "type": "plain_text",
-            "text": "Click Me"
-          },
-          "action_id": "button_click"
-        }
-      }
-    ],
-    text: `Hey there <@${message.user}>!`,
-    thread_ts: message.ts
-  });
-});
+    res.on('data', chunk => {
+      data.push(chunk);
+    });
 
-app.event('app_mention', async ({ event, say }) => {
-  await say({
-    text: `Hello <@${event.user}>: If you send me a :wave: I'll send you a button to click. If you add a reaction to a message I'll say thanks.`,
-    thread_ts: event.ts
-  })
-});
-
-app.event('reaction_added', async ({ event, say }) => {
-  await say({
-    text: `Thanks for the :${event.reaction}:`,
-    thread_ts: event.item.ts
-  })
-});
-
-app.action('button_click', async ({ body, ack, say }) => {
-  // Acknowledge the action
-  await ack();
-  // console.log(JSON.stringify(body,null,2))
-  await say({
-    text: `<@${body.user.id}> you clicked the button. Well done.`,
-    thread_ts: body.message.ts
+    res.on('end', () => {
+      console.log('Response ended: ');
+      const response = JSON.parse(Buffer.concat(data).toString());
+      let status = response.field1 === '1' ? 'POWER ON :full_moon_with_face: ' : 'POWER OFF :new_moon_with_face: '
+      const createdAt = new Date(response.created_at);
+      say(`Palata 505 has status ${status} \nDate ${createdAt.toLocaleString()}`);
+    });
+  }).on('error', err => {
+    console.log('Error: ', err.message);
   });
 });
 

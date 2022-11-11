@@ -1,17 +1,13 @@
-const express = require('express');
-const {App, ExpressReceiver} = require('@slack/bolt');
+require('dotenv').config();
+const {App} = require('@slack/bolt');
 const https = require('https');
 
-const receiver = new ExpressReceiver({signingSecret: process.env.SLACK_SIGNING_SECRET});
-
-receiver.router.use(express.static('public'))
-
+// Initializes your app with your bot token and signing secret
 const app = new App({
-  receiver,
   token: process.env.SLACK_BOT_TOKEN,
   signingSecret: process.env.SLACK_SIGNING_SECRET,
-  socketMode: true,
   appToken: process.env.SLACK_APP_TOKEN,
+  socketMode: true,
 });
 
 app.event("app_home_opened", async ({say}) => {
@@ -40,7 +36,7 @@ app.event("app_home_opened", async ({say}) => {
 });
 
 (async () => {
-  // Start the app
+  // Start your app
   await app.start(process.env.PORT || 3000);
 
   console.log('⚡️ Bolt app is running!');

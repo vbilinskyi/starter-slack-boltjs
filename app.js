@@ -37,6 +37,10 @@ app.event("app_home_opened", async ({say}) => {
   });
 });
 
+app.event('url_verification', () => {
+  console.log('url_verification');
+});
+
 (async () => {
   // Start the app
   await app.start(process.env.PORT || 3000);
